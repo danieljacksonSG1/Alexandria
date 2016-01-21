@@ -3,14 +3,20 @@ package it.jaschke.alexandria;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.CursorLoader;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.util.Patterns;
+import android.util.SparseArray;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -20,22 +26,30 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 
+import com.google.android.gms.vision.Frame;
+import com.google.android.gms.vision.barcode.Barcode;
+import com.google.android.gms.vision.barcode.BarcodeDetector;
+
 import it.jaschke.alexandria.data.AlexandriaContract;
 import it.jaschke.alexandria.services.BookService;
 import it.jaschke.alexandria.services.DownloadImage;
 
 
 public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<Cursor> {
-    private static final String TAG = "INTENT_TO_SCAN_ACTIVITY";
+
     private EditText ean;
     private final int LOADER_ID = 1;
     private View rootView;
     private final String EAN_CONTENT="eanContent";
     private static final String SCAN_FORMAT = "scanFormat";
     private static final String SCAN_CONTENTS = "scanContents";
+    public static final String TAG = AddBook.class.getSimpleName();
 
     private String mScanFormat = "Format:";
     private String mScanContents = "Contents:";
+
+    ImageView mBookBarcode;
+    Bitmap myBitmap;
 
 
 
@@ -51,10 +65,14 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
     }
 
     @Override
-    public View onCreateView(final LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+    public View onCreateView(final LayoutInflater inflater, final ViewGroup container, Bundle savedInstanceState) {
 
         rootView = inflater.inflate(R.layout.fragment_add_book, container, false);
         ean = (EditText) rootView.findViewById(R.id.ean);
+        mBookBarcode = (ImageView) rootView.findViewById(R.id.bookBarcode);
+
+        myBitmap = BitmapFactory.decodeResource(getActivity().getResources(),R.drawable.eantest);
+        mBookBarcode.setImageBitmap(myBitmap);
 
         ean.addTextChangedListener(new TextWatcher() {
             @Override
@@ -68,7 +86,8 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
             }
 
             @Override
-            public void afterTextChanged(Editable s) {
+            public void afterTextChanged(Editable s)
+            {
                 String ean =s.toString();
                 //catch isbn10 numbers
                 if(ean.length()==10 && !ean.startsWith("978")){
@@ -78,16 +97,14 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
                     clearFields();
                     return;
                 }
-                //Once we have an ISBN, start a book intent
-                Intent bookIntent = new Intent(getActivity(), BookService.class);
-                bookIntent.putExtra(BookService.EAN, ean);
-                bookIntent.setAction(BookService.FETCH_BOOK);
-                getActivity().startService(bookIntent);
-                AddBook.this.restartLoader();
+                // Passes the ISBN into the method and starts the AddBook intent
+                startAddBookIntent(ean);
+
             }
         });
 
-        rootView.findViewById(R.id.scan_button).setOnClickListener(new View.OnClickListener() {
+        rootView.findViewById(R.id.scan_button).setOnClickListener(new View.OnClickListener()
+        {
             @Override
             public void onClick(View v) {
                 // This is the callback method that the system will invoke when your button is
@@ -97,11 +114,36 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
                 // are using an external app.
                 //when you're done, remove the toast below.
                 Context context = getActivity();
-                CharSequence text = "This button should let you scan a book for its barcode!";
-                int duration = Toast.LENGTH_SHORT;
 
-                Toast toast = Toast.makeText(context, text, duration);
-                toast.show();
+
+
+                // Get the barcode
+                // https://search-codelabs.appspot.com/codelabs/bar-codes#6
+                // TODO: Add barcode retrieveal intent
+                BarcodeDetector detector = new BarcodeDetector.Builder(getActivity())
+                        .setBarcodeFormats(Barcode.EAN_13 | Barcode.DATA_MATRIX | Barcode.QR_CODE)
+                        .build();
+                if (!detector.isOperational())
+                {
+                    Toast.makeText(getActivity(), "Could not setup the detector", Toast.LENGTH_LONG).show();
+                }
+                else
+                {
+                    Log.i(TAG, "Detector is operational");
+
+                    Frame frame = new Frame.Builder().setBitmap(myBitmap).build();
+                    SparseArray<Barcode> barcodes = detector.detect(frame);
+
+                        Barcode thisCode = barcodes.valueAt(0);
+                        Log.i(TAG, "The ISBN is: " + thisCode.rawValue);
+
+
+                }
+
+
+                //String ISBN = null;
+                //startAddBookIntent(ISBN);
+
 
             }
         });
@@ -130,6 +172,33 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
         }
 
         return rootView;
+    }
+
+    // Takes the 13 digit ISBN as an arg
+    private void startAddBookIntent(String ean)
+    {
+        try
+        {
+            //Once we have an ISBN, start a book intent
+            Intent bookIntent = new Intent(getActivity(), BookService.class);
+            bookIntent.putExtra(BookService.EAN, ean);
+            bookIntent.setAction(BookService.FETCH_BOOK);
+            getActivity().startService(bookIntent);
+            AddBook.this.restartLoader();
+        }
+        catch(NullPointerException e)
+        {
+            Log.i(TAG, "Error parsing ISBN: " + e.getMessage());
+        }
+    }
+
+
+    // Get the picture from the camera
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data)
+    {
+
+        super.onActivityResult(requestCode, resultCode, data);
     }
 
     private void restartLoader(){

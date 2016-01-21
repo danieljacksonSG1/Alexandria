@@ -3,10 +3,13 @@
     package="it.jaschke.alexandria" >
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" />
     <uses-feature android:name="android.hardware.camera.autofocus" />
 
+    <!--http://arjunu.com/2015/08/android-barcode-detection-tracking-using-mobile-vision-api/ -->
+    <meta-data android:name="com.google.android.gms.vision.DEPENDENCIES" android:value="barcode"/>
 
     <application
         android:allowBackup="true"

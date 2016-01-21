@@ -29,7 +29,10 @@ import it.jaschke.alexandria.data.AlexandriaContract;
  * a service on a separate handler thread.
  * <p/>
  */
-public class BookService extends IntentService {
+public class BookService extends IntentService
+{
+
+
 
     private final String LOG_TAG = BookService.class.getSimpleName();
 
@@ -94,7 +97,6 @@ public class BookService extends IntentService {
         HttpURLConnection urlConnection = null;
         BufferedReader reader = null;
         String bookJsonString = null;
-
         try {
             final String FORECAST_BASE_URL = "https://www.googleapis.com/books/v1/volumes?";
             final String QUERY_PARAM = "q";
@@ -106,6 +108,8 @@ public class BookService extends IntentService {
                     .build();
 
             URL url = new URL(builtUri.toString());
+
+            Log.i(LOG_TAG, "Query URL is: " + builtUri.toString());
 
             urlConnection = (HttpURLConnection) url.openConnection();
             urlConnection.setRequestMethod("GET");

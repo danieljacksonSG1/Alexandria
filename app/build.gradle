@@ -34,8 +34,9 @@ android {
         abortOnError false
     }
 }
-
+// https://search-codelabs.appspot.com/codelabs/bar-codes#3
 dependencies {
     compile 'com.android.support:appcompat-v7:21.0.3'
+    compile 'com.google.android.gms:play-services:8.3.0'
 
 }
