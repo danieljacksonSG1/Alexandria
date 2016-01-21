@@ -7,13 +7,16 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.CursorLoader;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.text.method.TextKeyListener;
 import android.util.Log;
 import android.util.Patterns;
 import android.util.SparseArray;
@@ -29,6 +32,11 @@ import android.widget.Toast;
 import com.google.android.gms.vision.Frame;
 import com.google.android.gms.vision.barcode.Barcode;
 import com.google.android.gms.vision.barcode.BarcodeDetector;
+
+import java.io.File;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import it.jaschke.alexandria.data.AlexandriaContract;
 import it.jaschke.alexandria.services.BookService;
@@ -113,36 +121,11 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
                 // Hint: Use a Try/Catch block to handle the Intent dispatch gracefully, if you
                 // are using an external app.
                 //when you're done, remove the toast below.
-                Context context = getActivity();
 
+                // Take a picture of the image and store into the imageView
+                // http://developer.android.com/training/camera/photobasics.html
 
-
-                // Get the barcode
-                // https://search-codelabs.appspot.com/codelabs/bar-codes#6
-                // TODO: Add barcode retrieveal intent
-                BarcodeDetector detector = new BarcodeDetector.Builder(getActivity())
-                        .setBarcodeFormats(Barcode.EAN_13 | Barcode.DATA_MATRIX | Barcode.QR_CODE)
-                        .build();
-                if (!detector.isOperational())
-                {
-                    Toast.makeText(getActivity(), "Could not setup the detector", Toast.LENGTH_LONG).show();
-                }
-                else
-                {
-                    Log.i(TAG, "Detector is operational");
-
-                    Frame frame = new Frame.Builder().setBitmap(myBitmap).build();
-                    SparseArray<Barcode> barcodes = detector.detect(frame);
-
-                        Barcode thisCode = barcodes.valueAt(0);
-                        Log.i(TAG, "The ISBN is: " + thisCode.rawValue);
-
-
-                }
-
-
-                //String ISBN = null;
-                //startAddBookIntent(ISBN);
+                takePicture();
 
 
             }
@@ -174,6 +157,84 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
         return rootView;
     }
 
+    private void takePicture()
+    {
+        final int REQUEST_IMAGE_CAPTURE = 1;
+        Intent takePicture = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+
+        // Check if we have a camera app installed
+        if (takePicture.resolveActivity(getActivity().getPackageManager()) != null)
+        {
+            Log.i(TAG, "Starting image capture");
+
+            File photoFile = createImageFile();
+
+            if (photoFile != null)
+            {
+                takePicture.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(photoFile));
+                startActivityForResult(takePicture, REQUEST_IMAGE_CAPTURE);
+            }
+
+
+        }
+        else
+        {
+            Toast.makeText(getActivity(), "No camera app installed", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    // Get the picture from the camera
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data)
+    {
+        super.onActivityResult(requestCode, resultCode, data);
+        Bundle extras = data.getExtras();
+        Bitmap imageBitmap = (Bitmap) extras.get("data");
+        mBookBarcode.setImageBitmap(imageBitmap);
+
+        // Now decode the bitmap
+        decodeBarcode(imageBitmap);
+
+
+    }
+
+    // Takes a bitmap as an arg then decodes the ISBN
+    public void decodeBarcode(Bitmap image)
+    {
+        Log.i(TAG, "Decoding image bitmap");
+
+        // Decode the barcode
+        // https://search-codelabs.appspot.com/codelabs/bar-codes#6
+        BarcodeDetector detector = new BarcodeDetector.Builder(getActivity())
+                .setBarcodeFormats(Barcode.EAN_13 | Barcode.QR_CODE | Barcode.EAN_8) // Check EAN 8, 13, and QR
+                .build();
+        if (!detector.isOperational())
+        {
+            Toast.makeText(getActivity(), "Could not setup the detector", Toast.LENGTH_LONG).show();
+        }
+        else
+        {
+            Log.i(TAG, "Detector is operational");
+
+            Frame frame = new Frame.Builder().setBitmap(image).build();
+            SparseArray<Barcode> barcodes = detector.detect(frame);
+
+            try
+            {
+                Barcode thisCode = barcodes.valueAt(0);
+                Log.i(TAG, "The ISBN is: " + thisCode.rawValue);
+                //startAddBookIntent(ISBN);
+            }
+            catch (ArrayIndexOutOfBoundsException e)
+            {
+                Log.i(TAG, "Error getting barcode");
+            }
+
+
+        }
+
+    }
+
     // Takes the 13 digit ISBN as an arg
     private void startAddBookIntent(String ean)
     {
@@ -192,16 +253,37 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
         }
     }
 
+    // http://developer.android.com/training/camera/photobasics.html
 
-    // Get the picture from the camera
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data)
+    private File createImageFile()
     {
+        String mCurrentPhotoPath;
 
-        super.onActivityResult(requestCode, resultCode, data);
+        try
+        {
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+            String imageFileName = "JPEG_" + timeStamp + "_";
+            File storageDir = Environment.getExternalStorageDirectory();
+            File image = File.createTempFile(imageFileName, ".jpg", storageDir);
+
+            mCurrentPhotoPath = "file:" + image.getAbsolutePath();
+            return image;
+
+        }
+        catch (IOException e)
+        {
+            Log.i(TAG, "Unable to write file" + e.getMessage());
+            return null;
+        }
+
     }
 
-    private void restartLoader(){
+
+
+
+
+    private void restartLoader()
+    {
         getLoaderManager().restartLoader(LOADER_ID, null, this);
     }
 
