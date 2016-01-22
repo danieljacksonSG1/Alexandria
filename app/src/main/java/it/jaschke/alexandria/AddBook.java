@@ -56,6 +56,8 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
     private String mScanFormat = "Format:";
     private String mScanContents = "Contents:";
 
+    String mCurrentPhotoPath;
+
     ImageView mBookBarcode;
     Bitmap myBitmap;
 
@@ -168,9 +170,14 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
             Log.i(TAG, "Starting image capture");
 
             File photoFile = createImageFile();
+            Log.i(TAG, "Saving photo to: " + photoFile.getAbsolutePath());
+
+            // Keep track of the temporary file save location
+            mCurrentPhotoPath = photoFile.getAbsolutePath();
 
             if (photoFile != null)
             {
+                Log.i(TAG, "Saving file...");
                 takePicture.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(photoFile));
                 startActivityForResult(takePicture, REQUEST_IMAGE_CAPTURE);
             }
@@ -188,12 +195,12 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
     public void onActivityResult(int requestCode, int resultCode, Intent data)
     {
         super.onActivityResult(requestCode, resultCode, data);
-        Bundle extras = data.getExtras();
-        Bitmap imageBitmap = (Bitmap) extras.get("data");
-        mBookBarcode.setImageBitmap(imageBitmap);
+
+        Bitmap bitmap = BitmapFactory.decodeFile(mCurrentPhotoPath);
+        mBookBarcode.setImageBitmap(bitmap);
 
         // Now decode the bitmap
-        decodeBarcode(imageBitmap);
+        decodeBarcode(bitmap);
 
 
     }
@@ -223,7 +230,8 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
             {
                 Barcode thisCode = barcodes.valueAt(0);
                 Log.i(TAG, "The ISBN is: " + thisCode.rawValue);
-                //startAddBookIntent(ISBN);
+                // Once we have the barcode, pass the ISBN into the addBook method
+                startAddBookIntent(thisCode.rawValue);
             }
             catch (ArrayIndexOutOfBoundsException e)
             {
@@ -254,10 +262,8 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
     }
 
     // http://developer.android.com/training/camera/photobasics.html
-
     private File createImageFile()
     {
-        String mCurrentPhotoPath;
 
         try
         {
@@ -266,7 +272,6 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
             File storageDir = Environment.getExternalStorageDirectory();
             File image = File.createTempFile(imageFileName, ".jpg", storageDir);
 
-            mCurrentPhotoPath = "file:" + image.getAbsolutePath();
             return image;
 
         }
