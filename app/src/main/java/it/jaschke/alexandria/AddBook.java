@@ -81,8 +81,8 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
         ean = (EditText) rootView.findViewById(R.id.ean);
         mBookBarcode = (ImageView) rootView.findViewById(R.id.bookBarcode);
 
-        myBitmap = BitmapFactory.decodeResource(getActivity().getResources(),R.drawable.eantest);
-        mBookBarcode.setImageBitmap(myBitmap);
+        //myBitmap = BitmapFactory.decodeResource(getActivity().getResources(),R.drawable.eantest);
+        //mBookBarcode.setImageBitmap(myBitmap);
 
         ean.addTextChangedListener(new TextWatcher() {
             @Override
@@ -164,20 +164,30 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
         final int REQUEST_IMAGE_CAPTURE = 1;
         Intent takePicture = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
 
+        File photoFile = null;
+
         // Check if we have a camera app installed
         if (takePicture.resolveActivity(getActivity().getPackageManager()) != null)
         {
             Log.i(TAG, "Starting image capture");
 
-            File photoFile = createImageFile();
-            Log.i(TAG, "Saving photo to: " + photoFile.getAbsolutePath());
+            // Try to create a file object
+            try
+            {
+                photoFile = createImageFile();
+                Log.i(TAG, "Saving photo to: " + photoFile.getAbsolutePath());
 
-            // Keep track of the temporary file save location
-            mCurrentPhotoPath = photoFile.getAbsolutePath();
+                // Keep track of the temporary file save location
+                mCurrentPhotoPath = photoFile.getAbsolutePath();
+            }
+            catch(NullPointerException e)
+            {
+                Log.i(TAG, "Unable to create file: " + e.getMessage());
+            }
 
             if (photoFile != null)
             {
-                Log.i(TAG, "Saving file...");
+                Log.i(TAG, "Taking picture...");
                 takePicture.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(photoFile));
                 startActivityForResult(takePicture, REQUEST_IMAGE_CAPTURE);
             }
@@ -199,14 +209,23 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
         Bitmap bitmap = BitmapFactory.decodeFile(mCurrentPhotoPath);
         mBookBarcode.setImageBitmap(bitmap);
 
-        // Now decode the bitmap
-        decodeBarcode(bitmap);
+        // Now try and decode the bitmap
+        try
+        {
+            decodeBarcode(bitmap);
+
+        }
+        catch(Exception e)
+        {
+            Log.i(TAG, "Error decoding bitmap");
+            Toast.makeText(getActivity(), "Try scan the barcode again", Toast.LENGTH_LONG).show();
+        }
 
 
     }
 
     // Takes a bitmap as an arg then decodes the ISBN
-    public void decodeBarcode(Bitmap image)
+    public void decodeBarcode(Bitmap image) throws Exception
     {
         Log.i(TAG, "Decoding image bitmap");
 

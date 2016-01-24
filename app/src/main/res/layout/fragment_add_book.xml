@@ -1,19 +1,22 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
-    android:layout_height="match_parent" tools:context="it.jaschke.alexandria.AddBook">
+    android:layout_height="match_parent" tools:context="it.jaschke.alexandria.AddBook"
+    >
 
     <RelativeLayout
         android:orientation="horizontal"
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"
-        android:layout_gravity="center_horizontal|top">
+        android:layout_gravity="center_horizontal|top"
+        android:background="@android:color/holo_orange_light"
+        android:padding="10dp">
 
         <LinearLayout
-            android:orientation="horizontal"
-            android:layout_width="wrap_content"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
             android:id="@+id/eancontainer"
             android:layout_height="wrap_content"
-            android:layout_marginTop="30dp"
+            android:layout_marginTop="20dp"
             android:layout_alignParentTop="true"
             android:layout_centerHorizontal="true">
 
@@ -30,8 +33,9 @@
                 android:paddingRight="20dp"/>
 
             <Button
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:background="@color/buttonTransparent"
+                android:layout_width="match_parent"
+                android:layout_height="70dp"
                 android:text="@string/scan_button"
                 android:id="@+id/scan_button"/>
 
@@ -132,6 +136,6 @@
             android:layout_centerVertical="true"
             android:layout_centerHorizontal="true" />
 
-
     </RelativeLayout>
+
 </FrameLayout>
