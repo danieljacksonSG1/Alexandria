@@ -7,6 +7,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -200,8 +201,16 @@ public class BookService extends IntentService
                 writeBackCategories(ean,bookInfo.getJSONArray(CATEGORIES) );
             }
 
-        } catch (JSONException e) {
+        }
+        catch (JSONException e)
+        {
             Log.e(LOG_TAG, "Error ", e);
+            Toast.makeText(getApplicationContext(), "Problem reading ISBN", Toast.LENGTH_LONG).show();
+        }
+        catch(NullPointerException e)
+        {
+            Log.e(LOG_TAG, "Null pointer" + e.getMessage());
+            Toast.makeText(getApplicationContext(), "Problem reading ISBN", Toast.LENGTH_LONG).show();
         }
     }
 

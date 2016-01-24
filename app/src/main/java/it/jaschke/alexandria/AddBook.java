@@ -7,6 +7,8 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -59,7 +61,6 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
     String mCurrentPhotoPath;
 
     ImageView mBookBarcode;
-    Bitmap myBitmap;
 
 
 
@@ -100,14 +101,16 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
             {
                 String ean =s.toString();
                 //catch isbn10 numbers
-                if(ean.length()==10 && !ean.startsWith("978")){
+                if(ean.length()==10 && !ean.startsWith("978"))
+                {
                     ean="978"+ean;
                 }
-                if(ean.length()<13){
+                if(ean.length()<13)
+                {
                     clearFields();
                     return;
                 }
-                // Passes the ISBN into the method and starts the AddBook intent
+
                 startAddBookIntent(ean);
 
             }
@@ -151,12 +154,32 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
             }
         });
 
-        if(savedInstanceState!=null){
+        if(savedInstanceState!=null)
+        {
             ean.setText(savedInstanceState.getString(EAN_CONTENT));
             ean.setHint("");
         }
 
         return rootView;
+    }
+
+    // Check for network connectivity
+    // http://developer.android.com/training/basics/network-ops/connecting.html#connection
+    private boolean isNetworkAvailable()
+    {
+        ConnectivityManager connectivityManager = (ConnectivityManager) getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
+
+        if (networkInfo != null && networkInfo.isConnected())
+        {
+            Log.i(TAG, "Network available");
+            return true;
+        }
+        else
+        {
+            Log.i(TAG, "No network available");
+            return false;
+        }
     }
 
     private void takePicture()
@@ -206,78 +229,99 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
     {
         super.onActivityResult(requestCode, resultCode, data);
 
-        Bitmap bitmap = BitmapFactory.decodeFile(mCurrentPhotoPath);
-        mBookBarcode.setImageBitmap(bitmap);
 
-        // Now try and decode the bitmap
-        try
+
+        // If the resultCode is 0 then we bailed out of taking the photo
+        if (resultCode == 0)
         {
+            Log.i(TAG, "Didn't scan barcode");
+        }
+        // Looks like we took the picture so proceed
+        else
+        {
+            // Access the saved file
+            Bitmap bitmap = BitmapFactory.decodeFile(mCurrentPhotoPath);
+            //mBookBarcode.setImageBitmap(bitmap);
+            // Now try and decode the bitmap
             decodeBarcode(bitmap);
-
         }
-        catch(Exception e)
-        {
-            Log.i(TAG, "Error decoding bitmap");
-            Toast.makeText(getActivity(), "Try scan the barcode again", Toast.LENGTH_LONG).show();
-        }
-
-
     }
 
     // Takes a bitmap as an arg then decodes the ISBN
-    public void decodeBarcode(Bitmap image) throws Exception
+    public void decodeBarcode(Bitmap image)
     {
         Log.i(TAG, "Decoding image bitmap");
+        BarcodeDetector detector;
 
         // Decode the barcode
         // https://search-codelabs.appspot.com/codelabs/bar-codes#6
-        BarcodeDetector detector = new BarcodeDetector.Builder(getActivity())
-                .setBarcodeFormats(Barcode.EAN_13 | Barcode.QR_CODE | Barcode.EAN_8) // Check EAN 8, 13, and QR
-                .build();
-        if (!detector.isOperational())
+        try
         {
-            Toast.makeText(getActivity(), "Could not setup the detector", Toast.LENGTH_LONG).show();
+            detector = new BarcodeDetector.Builder(getActivity())
+                    .setBarcodeFormats(Barcode.EAN_13 | Barcode.QR_CODE | Barcode.EAN_8) // Check EAN 8, 13, and QR
+                    .build();
+
+            if (!detector.isOperational())
+            {
+                Toast.makeText(getActivity(), "Could not setup the detector", Toast.LENGTH_LONG).show();
+            }
+            else
+            {
+                Log.i(TAG, "Detector is operational");
+
+                Frame frame = new Frame.Builder().setBitmap(image).build();
+                SparseArray<Barcode> barcodes = detector.detect(frame);
+
+                try
+                {
+                    Barcode thisCode = barcodes.valueAt(0);
+                    Log.i(TAG, "The ISBN is: " + thisCode.rawValue);
+                    // Once we have the barcode, pass the ISBN into the addBook method
+                    startAddBookIntent(thisCode.rawValue);
+                }
+                catch (ArrayIndexOutOfBoundsException e)
+                {
+                    Log.i(TAG, "Error reading barcode");
+                    Toast.makeText(getActivity(), "Try scanning again", Toast.LENGTH_LONG).show();
+                }
+
+
+            }
         }
-        else
+        catch(Exception e)
         {
-            Log.i(TAG, "Detector is operational");
-
-            Frame frame = new Frame.Builder().setBitmap(image).build();
-            SparseArray<Barcode> barcodes = detector.detect(frame);
-
-            try
-            {
-                Barcode thisCode = barcodes.valueAt(0);
-                Log.i(TAG, "The ISBN is: " + thisCode.rawValue);
-                // Once we have the barcode, pass the ISBN into the addBook method
-                startAddBookIntent(thisCode.rawValue);
-            }
-            catch (ArrayIndexOutOfBoundsException e)
-            {
-                Log.i(TAG, "Error getting barcode");
-            }
-
-
+            Log.i(TAG, "Error building detector");
         }
+
+
 
     }
 
     // Takes the 13 digit ISBN as an arg
     private void startAddBookIntent(String ean)
     {
-        try
+        if (isNetworkAvailable())
         {
-            //Once we have an ISBN, start a book intent
-            Intent bookIntent = new Intent(getActivity(), BookService.class);
-            bookIntent.putExtra(BookService.EAN, ean);
-            bookIntent.setAction(BookService.FETCH_BOOK);
-            getActivity().startService(bookIntent);
-            AddBook.this.restartLoader();
+            try
+            {
+                //Once we have an ISBN, start a book intent
+                Intent bookIntent = new Intent(getActivity(), BookService.class);
+                bookIntent.putExtra(BookService.EAN, ean);
+                bookIntent.setAction(BookService.FETCH_BOOK);
+                getActivity().startService(bookIntent);
+                AddBook.this.restartLoader();
+            }
+            catch(NullPointerException e)
+            {
+                Log.i(TAG, "Error parsing ISBN: " + e.getMessage());
+            }
         }
-        catch(NullPointerException e)
+        else
         {
-            Log.i(TAG, "Error parsing ISBN: " + e.getMessage());
+            Toast.makeText(getActivity(), "No network available", Toast.LENGTH_LONG).show();
         }
+
+
     }
 
     // http://developer.android.com/training/camera/photobasics.html

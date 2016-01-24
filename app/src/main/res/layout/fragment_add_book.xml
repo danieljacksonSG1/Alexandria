@@ -8,7 +8,6 @@
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"
         android:layout_gravity="center_horizontal|top"
-        android:background="@android:color/holo_orange_light"
         android:padding="10dp">
 
         <LinearLayout
@@ -33,7 +32,7 @@
                 android:paddingRight="20dp"/>
 
             <Button
-                android:background="@color/buttonTransparent"
+
                 android:layout_width="match_parent"
                 android:layout_height="70dp"
                 android:text="@string/scan_button"

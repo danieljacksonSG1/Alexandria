@@ -6,6 +6,9 @@
     android:tag="PREFERENCE_TAG"
     >
 
+    <PreferenceCategory
+        android:title="User settings" />
+
     <ListPreference
         android:key="pref_startFragment"
         android:title="@string/pref_startScreen"
