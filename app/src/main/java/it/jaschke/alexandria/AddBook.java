@@ -310,6 +310,13 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
                 bookIntent.setAction(BookService.FETCH_BOOK);
                 getActivity().startService(bookIntent);
                 AddBook.this.restartLoader();
+
+                Fragment nextFragment = new ListOfBooks();
+                getActivity().getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.container, nextFragment)
+                        .addToBackStack((String) "Add Book")
+                        .commit();
+
             }
             catch(NullPointerException e)
             {
